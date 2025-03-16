@@ -168,7 +168,7 @@ void Mode1()
 
 #ifdef M1_FLAGS_NAME
         printf("Enter flag character (or press Enter to skip): ");
-        getchar(); // fix scanf
+        while (getchar() != '\n'); // Очищаем буфер после ввода символа
         flagName = getchar();
         if (flagName == '\r' || flagName == '\n') { flagName = '\0'; }
 #endif
