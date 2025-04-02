@@ -206,73 +206,130 @@ void Mode1()
     }
 }
 
-void Mode2()
+// Разбирает и вычисляет выражение с флагами (8|1&4^2)
+unsigned long long parseFlagExpression(const char* expr)
 {
-    char input[30];
-    char resultBuffer[128];
+    unsigned long long result = 0;
+    char buffer[256];
+    strcpy(buffer, expr);
+
+    char* token = strtok(buffer, "|&^");
+    unsigned long long values[64];
+    char operators[64];
+    int count = 0;
+
+    while (token)
+    {
+        int isNegated = (token[0] == '~');
+        char* numPart = isNegated ? token + 1 : token;
+        unsigned long long value = strtoull(numPart, NULL, 0);
+        if (isNegated)
+            value = ~value;
+        values[count++] = value;
+        token = strtok(NULL, "|&^");
+    }
+
+    // Восстанавливаем операторы
+    int opIndex = 0;
+    for (int i = 0; expr[i]; i++)
+    {
+        if (expr[i] == '|' || expr[i] == '&' || expr[i] == '^')
+            operators[opIndex++] = expr[i];
+    }
+
+    // Вычисляем результат по порядку операций
+    result = values[0];
+    for (int i = 0; i < count - 1; i++)
+    {
+        if (operators[i] == '|')
+            result |= values[i + 1];
+        else if (operators[i] == '&')
+            result &= values[i + 1];
+        else if (operators[i] == '^')
+            result ^= values[i + 1];
+    }
+
+    return result;
+}
+
+void Mode2(bool reverse)
+{
+    char input[256];
+    char resultBuffer[256];
     unsigned long long value;
 
     while (1)
     {
-        printf("Enter HEX value [FLAGS MODE] (or 'exit'): ");
-        scanf("%29s", input);
-        if (!strcmp(input, "exit"))
-            return;
+        if (reverse) { printf("Enter flags expression (e.g. 8|1&4^2) (or 'exit'): "); }
+        else { printf("Enter HEX value [FLAGS MODE] (or 'exit'): "); }
 
-        // Опционально обрабатываем знак отрицания
-        int isNegated = (input[0] == '~');
-        char* hexPart = isNegated ? input + 1 : input;
+        scanf("%255s", input);
+        if (!strcmp(input, "exit")) { return; }
 
-        // Убираем префикс "0x" или "0X" (а также "x" или "X")
-        if (strstr(hexPart, "0x") == hexPart || strstr(hexPart, "0X") == hexPart)
-            hexPart += 2;
-        else if (*hexPart == 'x' || *hexPart == 'X')
-            hexPart++;
-
-        // Преобразуем строку в число (в 16-ричном формате)
-        value = strtoull(hexPart, NULL, 16);
-
-        // Если был указан знак отрицания, инвертируем число
-        if (isNegated) {
-            value = ~value;
+        if (reverse)
+        { // |&^~ OR AND XOR NOT
+            unsigned long long result = parseFlagExpression(input);
+            sprintf(resultBuffer, "0x%llX (%llu)", result, result);
+            printf("Numeric result: %s\n", resultBuffer);
+            copyToClipboard(resultBuffer);
         }
+        else
+        {
+            // Опционально обрабатываем знак отрицания
+            int isNegated = (input[0] == '~');
+            char* hexPart = isNegated ? input + 1 : input;
 
-        // Построение строки с флагами: ищем установленные биты в числе.
-        // Проходим от старшего бита (63-й) к младшему, чтобы выводить большие значения первыми.
-        resultBuffer[0] = '\0';
-        int first = 1;
-        for (int i = 63; i >= 0; i--) {
-            unsigned long long bitVal = 1ULL << i;
-            if (value & bitVal) {
-                char tmp[32];
-                sprintf(tmp, "%llu", bitVal);
-                if (!first) {
-                    strcat(resultBuffer, "|");
-                }
-                strcat(resultBuffer, tmp);
-                first = 0;
+            // Убираем префикс "0x" или "0X" (а также "x" или "X")
+            if (strstr(hexPart, "0x") == hexPart || strstr(hexPart, "0X") == hexPart)
+                hexPart += 2;
+            else if (*hexPart == 'x' || *hexPart == 'X')
+                hexPart++;
+
+            // Преобразуем строку в число (в 16-ричном формате)
+            value = strtoull(hexPart, NULL, 16);
+
+            // Если был указан знак отрицания, инвертируем число
+            if (isNegated) {
+                value = ~value;
             }
-        }
-        // Если ни один бит не установлен, выводим 0.
-        if (first) {
-            strcpy(resultBuffer, "0");
-        }
 
-        printf("Flags: %s\n", resultBuffer);
-        // Если нужна функция копирования в буфер обмена, можно добавить вызов здесь.
+            // Построение строки с флагами: ищем установленные биты в числе.
+            // Проходим от старшего бита (63-й) к младшему, чтобы выводить большие значения первыми.
+            resultBuffer[0] = '\0';
+            int first = 1;
+            for (int i = 63; i >= 0; i--) {
+                unsigned long long bitVal = 1ULL << i;
+                if (value & bitVal) {
+                    char tmp[32];
+                    sprintf(tmp, "%llu", bitVal);
+                    if (!first) {
+                        strcat(resultBuffer, "|");
+                    }
+                    strcat(resultBuffer, tmp);
+                    first = 0;
+                }
+            }
+            // Если ни один бит не установлен, выводим 0.
+            if (first) {
+                strcpy(resultBuffer, "0");
+            }
+
+            printf("Flags: %s\n", resultBuffer);
+            copyToClipboard(resultBuffer);
+        }
     }
 }
 
 int main()
 {
     // mode0 // ptr conv
-    bool bIsMode1 = (GetAsyncKeyState(VK_SHIFT) & 0x8000); // bits table
-    //bool bIsMode2 = (GetAsyncKeyState(VK_RMENU) & 0x8000); // ALT dec/dex flags extractor
-    bool bIsMode2 = (GetAsyncKeyState(VK_CONTROL) & 0x8000); // ALT dec/dex flags extractor
+    bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000); // bits table
+    bool lalt = (GetAsyncKeyState(VK_RMENU) & 0x8000); // ALT dec/dex flags extractor
+    bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000); // ALT dec/dex flags extractor
     bool prev = (GetAsyncKeyState(VK_OEM_COMMA) & 0x8000);
     bool next = (GetAsyncKeyState(VK_OEM_PERIOD) & 0x8000);
-    if (bIsMode1) { Mode1(); }
-    else if (bIsMode2) { Mode2(); }
+    if (ctrl) { Mode2(shift); }
+    else if (shift) { Mode1(); }
     else { Mode0(); }
     return 0;
 }
