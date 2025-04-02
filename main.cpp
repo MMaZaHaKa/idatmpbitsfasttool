@@ -289,31 +289,31 @@ void Mode2(bool reverse)
             value = strtoull(hexPart, NULL, 16);
 
             // Если был указан знак отрицания, инвертируем число
-            if (isNegated) {
-                value = ~value;
-            }
+            if (isNegated) { value = ~value; }
 
             // Построение строки с флагами: ищем установленные биты в числе.
             // Проходим от старшего бита (63-й) к младшему, чтобы выводить большие значения первыми.
             resultBuffer[0] = '\0';
-            int first = 1;
+            char hexBuffer[256] = "";
+            char decBuffer[256] = "";
+            bool first = true;
             for (int i = 63; i >= 0; i--) {
                 unsigned long long bitVal = 1ULL << i;
                 if (value & bitVal) {
-                    char tmp[32];
-                    sprintf(tmp, "%llu", bitVal);
-                    if (!first) {
-                        strcat(resultBuffer, "|");
-                    }
-                    strcat(resultBuffer, tmp);
-                    first = 0;
+                    char hexTmp[32];
+                    char decTmp[32];
+                    sprintf(hexTmp, "0x%llX", bitVal);
+                    sprintf(decTmp, "%llu", bitVal);
+                    if (!first) { strcat(hexBuffer, "|"); strcat(decBuffer, "|"); }
+                    strcat(hexBuffer, hexTmp);
+                    strcat(decBuffer, decTmp);
+                    first = false;
                 }
             }
             // Если ни один бит не установлен, выводим 0.
-            if (first) {
-                strcpy(resultBuffer, "0");
-            }
+            if (first) { strcpy(hexBuffer, "0"); strcpy(decBuffer, "0"); }
 
+            sprintf(resultBuffer, "%s   %s", hexBuffer, decBuffer);
             printf("Flags: %s\n", resultBuffer);
             copyToClipboard(resultBuffer);
         }
