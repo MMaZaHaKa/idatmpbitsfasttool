@@ -278,15 +278,22 @@ void Mode2(bool reverse)
             // Опционально обрабатываем знак отрицания
             int isNegated = (input[0] == '~');
             char* hexPart = isNegated ? input + 1 : input;
+            int base = 10;
 
             // Убираем префикс "0x" или "0X" (а также "x" или "X")
             if (strstr(hexPart, "0x") == hexPart || strstr(hexPart, "0X") == hexPart)
+            {
                 hexPart += 2;
+                base = 16;
+            }
             else if (*hexPart == 'x' || *hexPart == 'X')
-                hexPart++;
+            {
+                ++hexPart;
+                base = 16;
+            }
 
-            // Преобразуем строку в число (в 16-ричном формате)
-            value = strtoull(hexPart, NULL, 16);
+            // Преобразуем строку в число
+            value = strtoull(hexPart, NULL, base);
 
             // Если был указан знак отрицания, инвертируем число
             if (isNegated) { value = ~value; }
@@ -314,7 +321,7 @@ void Mode2(bool reverse)
             if (first) { strcpy(hexBuffer, "0"); strcpy(decBuffer, "0"); }
 
             sprintf(resultBuffer, "%s   %s", hexBuffer, decBuffer);
-            printf("Flags: %s\n", resultBuffer);
+            printf("Flags [copied<--] (%llu, 0x%llX): %s\n", value, value, resultBuffer);
             copyToClipboard(resultBuffer);
         }
     }
