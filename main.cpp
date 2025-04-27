@@ -11,6 +11,17 @@
 #define PCSXTRANSLATE(p) (((uintptr_t)p) - P_PCSX2_BASE) // PCSX2 -> IDA
 #define PCSX2POINTER(p) (((uintptr_t)p) + P_PCSX2_BASE) // VIRTUAL -> PHYSICAL
 
+void inline SetColor(WORD wAttributes) { SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), wAttributes); }
+
+#define CW_R() SetColor(FOREGROUND_RED)                          
+#define CW_G() SetColor(FOREGROUND_GREEN)                  
+#define CW_B() SetColor(FOREGROUND_BLUE)                    
+#define CW_Y() SetColor(FOREGROUND_RED | FOREGROUND_GREEN)      
+#define CW_C() SetColor(FOREGROUND_GREEN | FOREGROUND_BLUE)        
+#define CW_M() SetColor(FOREGROUND_RED | FOREGROUND_BLUE)         
+#define CW_W() SetColor(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
+#define CW_K() SetColor(0)                                         
+
 //strhexlen(hexPart)#define EXIT // no while
 #define M1_FLAGS_NAME
 #define BASECOL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
@@ -162,7 +173,13 @@ void Mode1()
     while (1)
 #endif
     {
-        printf("Enter HEX value [BITS MODE] (or 'exit'): ");
+        //printf("Enter HEX value [BITS MODE] (or 'exit'): ");
+        printf("Enter DEC or HEX(0x) value ");
+        CW_M();
+        printf("[BITS MODE]");
+        CW_W();
+        printf(" (or 'exit'): ");
+
         scanf("%29s", input);
         if (!strcmp(input, "exit")) { return; }
 
@@ -174,16 +191,30 @@ void Mode1()
 #endif
 
         int isNegated = (input[0] == '~');
-        char* hexPart = isNegated ? input + 1 : input;
+        char* numStr = isNegated ? input + 1 : input;
 
-        if (strstr(hexPart, "0x") == hexPart || strstr(hexPart, "0X") == hexPart) {
-            hexPart += 2;
+        int base = 10;
+        if (strstr(numStr, "0x") == numStr || strstr(numStr, "0X") == numStr) {
+            numStr += 2;
+            base = 16;
         }
-        else if (*hexPart == 'x' || *hexPart == 'X') { ++hexPart; }
+        else if (*numStr == 'x' || *numStr == 'X') {
+            numStr++;
+            base = 16;
+        }
+        //else {
+        //    // Check for any hex digit A-F to switch base
+        //    for (char* p = numStr; *p; ++p) {
+        //        if ((toupper(*p) >= 'A' && toupper(*p) <= 'F')) {
+        //            base = 16;
+        //            break;
+        //        }
+        //    }
+        //}
 
-        //int numBits = strhexlen(hexPart) * 4; // no round 2
-        int numBits = ((strhexlen(hexPart) + 1) / 2 * 2) * 4; // 1char 4bit parse ~0x0200000000040000ui64; is 64bits, 0XFF is 8bits, 0x0FF is 12bits
-        value = strtoull(hexPart, NULL, 16);
+        //int numBits = strhexlen(numStr) * 4; // no round 2
+        int numBits = ((strhexlen(numStr) + 1) / 2 * 2) * 4; // 1char 4bit parse ~0x0200000000040000ui64; is 64bits, 0XFF is 8bits, 0x0FF is 12bits
+        value = strtoull(numStr, NULL, base);
 
         if (isNegated) {
             maskOn = ~value;
@@ -195,7 +226,8 @@ void Mode1()
             maskOff = ~value;
         }
 
-        printf("Bits [copied<--]: ");
+        //printf("Bits [copied<--]: ");
+        printf("Bits [copied<--] (%llu, 0x%llX): ", value, value);
 #ifdef M1_FLAGS_NAME
         PrintBits(value, maskOn, maskOff, flagName, bitBuffer, numBits);
 #else
@@ -261,7 +293,14 @@ void Mode2(bool reverse)
     while (1)
     {
         if (reverse) { printf("Enter flags expression (e.g. 8|1&4^2) (or 'exit'): "); }
-        else { printf("Enter HEX value [FLAGS MODE] (or 'exit'): "); }
+        //else { printf("Enter DEC or HEX(0x) value [FLAGS MODE] (or 'exit'): "); }
+        else {
+            printf("Enter DEC or HEX(0x) value ");
+            CW_M();
+            printf("[FLAGS MODE]");
+            CW_W();
+            printf(" (or 'exit'): ");
+        }
 
         scanf("%255s", input);
         if (!strcmp(input, "exit")) { return; }
