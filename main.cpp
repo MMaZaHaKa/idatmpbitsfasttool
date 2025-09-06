@@ -164,8 +164,13 @@ void PrintBits(unsigned long long value, unsigned long long maskOn, unsigned lon
     int totalBytes = (numBits + 7) / 8;
     int anyPrinted = 0;
     if (buffer) pos += sprintf(buffer + pos, "\n");
-    printf("%s ", (onCount < offCount) ? "ON" : "OFF");
-    if (buffer) pos += sprintf(buffer + pos, "%s ", (onCount > offCount) ? "ON" : "OFF");
+    char szmode[10];
+    if(onCount && offCount)
+        sprintf(szmode, "%s ", (onCount < offCount) ? "ON" : "OFF"); // 01111111 off mask, 10000000on mask
+    else
+        sprintf(szmode, "%s ", onCount ? "ON MASK" : "OFF MASK");
+    printf("%s ", szmode);
+    if (buffer) pos += sprintf(buffer + pos, "%s ", szmode);
 
     char fch = fChar;
     if (fch) { fch += totalBytes - (numBits % 8 == 0 ? 1 : 0); }
