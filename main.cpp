@@ -186,6 +186,12 @@ void PrintBits(unsigned long long value, unsigned long long maskOn, unsigned lon
         for (int k = start; k <= end; ++k) {
             if ((value >> k) & 1ULL) ++ones; else ++zeros;
         }
+
+        char label = 0;
+#ifdef M1_FLAGS_NAME
+        if (fch) { label = fch; fch--; }   // сдвигаем букву каждый байт
+#endif
+
         //if (ones == zeros) continue; // нет меньшинства пропускаем
         if (ones == zeros) { if (fch) fch--; continue; }
 
@@ -204,10 +210,9 @@ void PrintBits(unsigned long long value, unsigned long long maskOn, unsigned lon
 
         if (anyPrinted) { printf(", "); if (buffer) pos += sprintf(buffer + pos, ", "); }
 #ifdef M1_FLAGS_NAME
-        if (fch) {
-            printf("(%c)", fch);
-            if (buffer) pos += sprintf(buffer + pos, "(%c)", fch);
-            fch--;
+        if (label) {
+            printf("(%c)", label);
+            if (buffer) pos += sprintf(buffer + pos, "(%c)", label);
         }
 #endif
         printf("[byte%d, ", b);
