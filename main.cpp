@@ -23,7 +23,8 @@ void inline SetColor(WORD wAttributes) { SetConsoleTextAttribute(GetStdHandle(ST
 #define CW_K() SetColor(0)                                         
 
 //strhexlen(hexPart)#define EXIT // no while
-#define M1_FLAGS_NAME
+#define M1_FLAGS_NAME // спросить букву байта флага
+#define LOG_MASK_POS // доп инфа битов, байтов индексы
 #define BASECOL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 
 void copyToClipboard(const char* text) {
@@ -106,12 +107,13 @@ size_t strhexlen(const char* str) // ~0x200000000040000ui64;   :15
 
 
 #ifdef M1_FLAGS_NAME
-void PrintBits(unsigned long long value, unsigned long long maskOn, unsigned long long maskOff, char flagChar, char* buffer = NULL, int numBits = 64)
+void PrintBits(unsigned long long value, unsigned long long maskOn, unsigned long long maskOff, char fChar, char* buffer = NULL, int numBits = 64)
 #else
 void PrintBits(unsigned long long value, unsigned long long maskOn, unsigned long long maskOff, char* buffer = NULL, int numBits = 64)
 #endif
 {
 #ifdef M1_FLAGS_NAME
+    char flagChar = fChar;
     int totalFlags = numBits / 8;
     if (flagChar) { flagChar += totalFlags - (numBits % 8 == 0 ? 1 : 0); } // Ќачинаем с конца
 #endif
@@ -156,6 +158,69 @@ void PrintBits(unsigned long long value, unsigned long long maskOn, unsigned lon
         }
     }
     printf("\n");
+
+#ifdef LOG_MASK_POS
+    // ѕечать позиций битов меньшинства по байтам (byte0 = LSB). ‘ормат: [byteN, b1,b2,...]
+    int totalBytes = (numBits + 7) / 8;
+    int anyPrinted = 0;
+    if (buffer) pos += sprintf(buffer + pos, "\n");
+    printf("%s ", (onCount < offCount) ? "ON" : "OFF");
+    if (buffer) pos += sprintf(buffer + pos, "%s ", (onCount > offCount) ? "ON" : "OFF");
+
+    char fch = fChar;
+    if (fch) { fch += totalBytes - (numBits % 8 == 0 ? 1 : 0); }
+    //for (int b = 0; b < totalBytes; ++b)
+    for (int b = totalBytes - 1; b >= 0; --b)
+    {
+        int start = b * 8;                 // глобальный индекс младшего бита в байте
+        int end = start + 7;               // глобальный индекс старшего бита в байте
+        if (end >= numBits) end = numBits - 1;
+        if (start > end) continue;
+
+        int ones = 0, zeros = 0;
+        for (int k = start; k <= end; ++k) {
+            if ((value >> k) & 1ULL) ++ones; else ++zeros;
+        }
+        //if (ones == zeros) continue; // нет меньшинства пропускаем
+        if (ones == zeros) { if (fch) fch--; continue; }
+
+        int minority = (zeros > ones) ? 1 : 0;
+
+        int idxs[8]; int idxc = 0;
+        for (int k = start; k <= end; ++k) {
+            if (((value >> k) & 1ULL) == (unsigned)minority) idxs[idxc++] = k - start; // bitInByte 0..7
+        }
+        if (idxc == 0) continue;
+
+        // сортируем (максимум 8 элементов простой сорт)
+        for (int i = 0; i < idxc - 1; ++i)
+            for (int j = i + 1; j < idxc; ++j)
+                if (idxs[i] > idxs[j]) { int t = idxs[i]; idxs[i] = idxs[j]; idxs[j] = t; }
+
+        if (anyPrinted) { printf(", "); if (buffer) pos += sprintf(buffer + pos, ", "); }
+#ifdef M1_FLAGS_NAME
+        if (fch) {
+            printf("(%c)", fch);
+            if (buffer) pos += sprintf(buffer + pos, "(%c)", fch);
+            fch--;
+        }
+#endif
+        printf("[byte%d, ", b);
+        if (buffer) pos += sprintf(buffer + pos, "[byte%d, ", b);
+        for (int i = 0; i < idxc; ++i) {
+            if (i) { printf(","); if (buffer) pos += sprintf(buffer + pos, ","); }
+            printf("%d", idxs[i]);
+            if (buffer) pos += sprintf(buffer + pos, "%d", idxs[i]);
+        }
+        printf("]");
+        if (buffer) pos += sprintf(buffer + pos, "]");
+        anyPrinted = 1;
+    }
+
+    printf("\n");
+    if (buffer) pos += sprintf(buffer + pos, "\n");
+#endif
+
     if (buffer) { buffer[pos] = '\0'; }
     SetConsoleTextAttribute(hConsole, BASECOL);
 }
