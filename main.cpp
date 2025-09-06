@@ -228,7 +228,7 @@ void PrintBits(unsigned long long value, unsigned long long maskOn, unsigned lon
     }
 
     printf("\n");
-    if (buffer) pos += sprintf(buffer + pos, "\n");
+    //if (buffer) pos += sprintf(buffer + pos, "\n");
 #endif
 
     if (buffer) { buffer[pos] = '\0'; }
